@@ -31,7 +31,7 @@ namespace IT_SipProcess
         List<string> SIP1 = new List<string>();
         List<string> Result = new List<string>();
 
-        
+
         List<string> footer = new List<string>();
         List<string> GetBlock = new List<string>();
 
@@ -44,6 +44,11 @@ namespace IT_SipProcess
             if (!Directory.Exists(logFilePath + "\\XML\\"))
             {
                 Directory.CreateDirectory(logFilePath + "\\XML\\");
+            }
+
+            if (!Directory.Exists(logFilePath + "\\ERROR\\"))
+            {
+                Directory.CreateDirectory(logFilePath + "\\ERROR\\");
             }
 
             if (Directory.Exists(logFilePath + "\\CSV\\") && Directory.Exists(logFilePath + "\\XML\\"))
@@ -65,6 +70,10 @@ namespace IT_SipProcess
             if (!Directory.Exists(logFilePath + "\\XML\\"))
             {
                 Directory.CreateDirectory(logFilePath + "\\XML\\");
+            }
+            if (!Directory.Exists(logFilePath + "\\ERROR\\"))
+            {
+                Directory.CreateDirectory(logFilePath + "\\ERROR\\");
             }
 
             MoveAfterProcess();
@@ -120,6 +129,36 @@ namespace IT_SipProcess
                     }
                     else
                     {
+                        var ack2Path = logFilePath + "\\ERROR\\" + DateTime.Now.ToString("dd-MM-yyyy", new CultureInfo("en-US")) + "\\";
+                        var fileDestination = ack2Path + Path.GetFileName(item.Name);
+
+                        if (!Directory.Exists(ack2Path))
+                            Directory.CreateDirectory(ack2Path);
+
+                        for (var i = 2; true; i++)
+                        {
+                            try
+                            {
+                                File.Copy(item.FullName, fileDestination);
+                                File.Delete(item.FullName);
+                                break;
+                            }
+
+                            catch
+                            {
+                                try
+                                {
+                                    File.Delete(ack2Path + item.Name);
+                                    File.Copy(item.FullName, fileDestination);
+                                }
+                                catch
+                                {
+                                }
+                                File.Delete(item.FullName);
+                                break;
+                            }
+                        }
+
                         lbl_status.Text = Path.GetFileNameWithoutExtension(filename) + " Não associado";
                     }
                 }
@@ -161,7 +200,7 @@ namespace IT_SipProcess
                     int sequence = 1;
                     string JigStatus = linkfixture(PanelCode[0].ToString());
 
-                    if (JigStatus.Contains("Ok"))
+                    if (JigStatus.Contains("OK"))
                     {
                         foreach (string s in PanelCode)
                         {
@@ -199,7 +238,13 @@ namespace IT_SipProcess
                         lbl_ultimoserial.ForeColor = Color.Green;
                         clearlist();
 
-                        DGV_Info.Rows.Insert(0, JigStatus, Path.GetFileNameWithoutExtension(localfile) + "   " + DateTime.Now.ToString("HH:mm"));
+                        DGV_Info.Rows.Insert(0, JigStatus, Path.GetFileNameWithoutExtension(localfile) + " " + DateTime.Now.ToString("HH:mm"));
+                        DGV_Info.Rows[0].Cells[0].Style.BackColor = Color.Green;
+                        DGV_Info.Rows[0].Cells[0].Style.ForeColor = Color.White;
+
+                        DGV_Info.Rows[0].Cells[1].Style.BackColor = Color.Green;
+                        DGV_Info.Rows[0].Cells[1].Style.ForeColor = Color.White;
+
 
                         return true;
                     }
@@ -207,8 +252,12 @@ namespace IT_SipProcess
                     {
                         clearlist();
 
-                        DGV_Info.Rows.Insert(0, JigStatus, Path.GetFileNameWithoutExtension(localfile) + "   " + DateTime.Now.ToString("HH:mm"));
+                        DGV_Info.Rows.Insert(0, JigStatus, Path.GetFileNameWithoutExtension(localfile) + " " + DateTime.Now.ToString("HH:mm"));
+                        DGV_Info.Rows[0].Cells[0].Style.BackColor = Color.Red;
+                        DGV_Info.Rows[0].Cells[0].Style.ForeColor = Color.White;
 
+                        DGV_Info.Rows[0].Cells[1].Style.BackColor = Color.Red;
+                        DGV_Info.Rows[0].Cells[1].Style.ForeColor = Color.White;
                         return false;
 
                     }
@@ -218,7 +267,12 @@ namespace IT_SipProcess
                 {
                     clearlist();
 
-                    DGV_Info.Rows.Insert(0, "CSV com menos de 24 PCM", Path.GetFileNameWithoutExtension(localfile) + "   " + DateTime.Now.ToString("HH:mm"));
+                    DGV_Info.Rows.Insert(0, $"QUANTIDADE LIDO DIFERENTE DO CONFIG {PCMQuantity}", Path.GetFileNameWithoutExtension(localfile) + "   " + DateTime.Now.ToString("HH:mm"));
+                    DGV_Info.Rows[0].Cells[0].Style.BackColor = Color.Red;
+                    DGV_Info.Rows[0].Cells[0].Style.ForeColor = Color.White;
+
+                    DGV_Info.Rows[0].Cells[1].Style.BackColor = Color.Red;
+                    DGV_Info.Rows[0].Cells[1].Style.ForeColor = Color.White;
 
                     return false;
                 }
@@ -234,31 +288,56 @@ namespace IT_SipProcess
         public string linkfixture(string fixturenumber)
         {
             cSelcompAPI api = new cSelcompAPI();
-            api.DeLinkFixtureFromSerialNumber(fixturenumber);
 
+            bool status = true;
             string ReadSIP2 = "";
+            int Position = 1;
             foreach (var spi2 in SIP1)
             {
                 if (spi2.ToString() != "NG")
                 {
                     Dictionary<string, string> Response = api.GetSerialNumber(spi2);
                     string SN2 = Response["SERIALNUMBER"].ToString().ToUpper();
+                    if (SN2 != "")
+                    {
+                        ReadSIP2 += SN2.ToString() + ",";
+                    }
+                    else
+                    {
+                        DGV_Info.Rows.Insert(0, $"{spi2} POSIÇÃO {Position} SEM RESULTADO", $"{fixturenumber} " + DateTime.Now.ToString("HH:mm"));
+                        DGV_Info.Rows[0].Cells[0].Style.BackColor = Color.Red;
+                        DGV_Info.Rows[0].Cells[0].Style.ForeColor = Color.White;
 
-                    ReadSIP2 += SN2.ToString() + ",";
+                        DGV_Info.Rows[0].Cells[1].Style.BackColor = Color.Red;
+                        DGV_Info.Rows[0].Cells[1].Style.ForeColor = Color.White;
+
+                        status = false;
+                    }
+                }
+                Position++;
+            }
+
+            if (status == true) 
+            {
+                api.DeLinkFixtureFromSerialNumber(fixturenumber);
+                string result = api.LinkFixtureToSerialNumber(fixturenumber, ReadSIP2.TrimEnd(','), EquipamentCode);
+
+                string[] resultsplit = result.Split('#');
+
+                if (result.Contains("true#SUCCESS"))
+                {
+                    return "OK: " + resultsplit[1];
+                }
+                else
+                {
+                    return "ERRO: " + resultsplit[1];
                 }
             }
-            string result = api.LinkFixtureToSerialNumber(fixturenumber, ReadSIP2.TrimEnd(','), EquipamentCode);
-
-            string[] resultsplit = result.Split('#');
-
-            if (result.Contains("true#SUCCESS"))
+            else 
             {
-                return "Ok: " + resultsplit[1];
+                return "FXTURE NÃO ASSOCIADO";
             }
-            else
-            {
-                return "Erro: " + resultsplit[1];
-            }
+
         }
         public void clearlist()
         {
