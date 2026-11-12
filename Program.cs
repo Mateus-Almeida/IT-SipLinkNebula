@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace IT_SipProcess
+namespace IT_SipLinkNebula
 {
     internal static class Program
     {

@@ -10,7 +10,7 @@ using System.Globalization;
 using System.Linq.Expressions;
 using System.Net.NetworkInformation;
 
-namespace IT_SipProcess
+namespace IT_SipLinkNebula
 {
     public partial class Form1 : Form
     {
@@ -28,6 +28,7 @@ namespace IT_SipProcess
 
         string filename = "";
         List<string> PanelCode = new List<string>();
+        List<string> Channel = new List<string>();
         List<string> SIP1 = new List<string>();
         List<string> Result = new List<string>();
 
@@ -103,7 +104,7 @@ namespace IT_SipProcess
                         if (!Directory.Exists(ack2Path))
                             Directory.CreateDirectory(ack2Path);
 
-                        for (var i = 2; true; i++)
+                        while (true)
                         {
                             try
                             {
@@ -135,7 +136,7 @@ namespace IT_SipProcess
                         if (!Directory.Exists(ack2Path))
                             Directory.CreateDirectory(ack2Path);
 
-                        for (var i = 2; true; i++)
+                        while (true)
                         {
                             try
                             {
@@ -190,6 +191,7 @@ namespace IT_SipProcess
                     data[i] = row;
 
                     PanelCode.Add(row[0]);
+                    Channel.Add(row[1]);
                     SIP1.Add(row[2]);
                     Result.Add(row[4]);
 
@@ -210,11 +212,12 @@ namespace IT_SipProcess
                                 string resultado = Result[csvposicao].ToString().ToUpper();
                                 string unitnumber = SIP1[csvposicao].ToString().ToUpper();
                                 string fixture = PanelCode[csvposicao].ToString().ToUpper();
+                                string channel = Channel[csvposicao].ToString().ToUpper();
 
                                 if (resultado.Contains("PASS"))
                                 {
-                                    string x1 = "<Unit Timestamp=\"" + datahora + "\"  UnitNumber=\"" + string.Empty + "\" SerialNumber=\"" + unitnumber + "\" StatusCode=\"PASS\">";
-                                    string x2 = "<Header TestFixtureNumber=\"" + fixture + "\"/>,";
+                                    string x1 = $"<Unit Timestamp=\"{datahora}\" UnitNumber=\"\" SerialNumber=\"{unitnumber}\" StatusCode=\"PASS\">";
+                                    string x2 = $"<Header TestFixtureNumber=\"{fixture}\" TestHeadNumber=\"{channel}\"/>,";
                                     string x3 = "</Unit>";
 
                                     footer.Add(x1 + x2 + x3);
@@ -267,7 +270,7 @@ namespace IT_SipProcess
                 {
                     clearlist();
 
-                    DGV_Info.Rows.Insert(0, $"QUANTIDADE LIDO DIFERENTE DO CONFIG {PCMQuantity}", Path.GetFileNameWithoutExtension(localfile) + "   " + DateTime.Now.ToString("HH:mm"));
+                    DGV_Info.Rows.Insert(0, $"QUANTIDADE LIDO {SIP1.Count} DIFERENTE DO CONFIG {PCMQuantity}", Path.GetFileNameWithoutExtension(localfile) + "   " + DateTime.Now.ToString("HH:mm"));
                     DGV_Info.Rows[0].Cells[0].Style.BackColor = Color.Red;
                     DGV_Info.Rows[0].Cells[0].Style.ForeColor = Color.White;
 
@@ -287,24 +290,39 @@ namespace IT_SipProcess
 
         public string linkfixture(string fixturenumber)
         {
-            cSelcompAPI api = new cSelcompAPI();
-
-            bool status = true;
-            string ReadSIP2 = "";
-            int Position = 1;
-            foreach (var spi2 in SIP1)
+            try
             {
-                if (spi2.ToString() != "NG")
+                cSelcompAPI api = new cSelcompAPI();
+                api.DeLinkFixtureFromSerialNumber(fixturenumber);
+
+                bool status = true;
+                string ReadSIP2 = "";
+                int Position = 1;
+                foreach (var spi2 in SIP1)
                 {
-                    Dictionary<string, string> Response = api.GetSerialNumber(spi2);
-                    string SN2 = Response["SERIALNUMBER"].ToString().ToUpper();
-                    if (SN2 != "")
+                    if (spi2.ToString() != "NG")
                     {
-                        ReadSIP2 += SN2.ToString() + ",";
+                        Dictionary<string, string> Response = api.GetSerialNumber(spi2);
+                        string SN2 = Response["SERIALNUMBER"].ToString().ToUpper();
+                        if (SN2 != "")
+                        {
+                            ReadSIP2 += SN2.ToString() + ",";
+                        }
+                        else
+                        {
+                            DGV_Info.Rows.Insert(0, $"{spi2} POSIÇÃO {Position} SEM RESULTADO", $"{fixturenumber} " + DateTime.Now.ToString("HH:mm"));
+                            DGV_Info.Rows[0].Cells[0].Style.BackColor = Color.Red;
+                            DGV_Info.Rows[0].Cells[0].Style.ForeColor = Color.White;
+
+                            DGV_Info.Rows[0].Cells[1].Style.BackColor = Color.Red;
+                            DGV_Info.Rows[0].Cells[1].Style.ForeColor = Color.White;
+
+                            status = false;
+                        }
                     }
                     else
                     {
-                        DGV_Info.Rows.Insert(0, $"{spi2} POSIÇÃO {Position} SEM RESULTADO", $"{fixturenumber} " + DateTime.Now.ToString("HH:mm"));
+                        DGV_Info.Rows.Insert(0, $"{spi2} NA POSIÇÃO {Position}", $"{fixturenumber} " + DateTime.Now.ToString("HH:mm"));
                         DGV_Info.Rows[0].Cells[0].Style.BackColor = Color.Red;
                         DGV_Info.Rows[0].Cells[0].Style.ForeColor = Color.White;
 
@@ -313,35 +331,39 @@ namespace IT_SipProcess
 
                         status = false;
                     }
+                    Position++;
                 }
-                Position++;
-            }
 
-            if (status == true) 
-            {
-                api.DeLinkFixtureFromSerialNumber(fixturenumber);
-                string result = api.LinkFixtureToSerialNumber(fixturenumber, ReadSIP2.TrimEnd(','), EquipamentCode);
-
-                string[] resultsplit = result.Split('#');
-
-                if (result.Contains("true#SUCCESS"))
+                if (status == true)
                 {
-                    return "OK: " + resultsplit[1];
+                    api.DeLinkFixtureFromSerialNumber(fixturenumber);
+                    string result = api.LinkFixtureToSerialNumber(fixturenumber, ReadSIP2.TrimEnd(','), EquipamentCode);
+
+                    string[] resultsplit = result.Split('#');
+
+                    if (result.Contains("true#SUCCESS"))
+                    {
+                        return "OK: " + resultsplit[1];
+                    }
+                    else
+                    {
+                        return "ERRO: " + resultsplit[1];
+                    }
                 }
                 else
                 {
-                    return "ERRO: " + resultsplit[1];
+                    return "FXTURE NÃO ASSOCIADO";
                 }
             }
-            else 
+            catch 
             {
-                return "FXTURE NÃO ASSOCIADO";
+                return "ERRO";
             }
-
         }
         public void clearlist()
         {
             PanelCode.Clear();
+            Channel.Clear();
             SIP1.Clear();
             Result.Clear();
 

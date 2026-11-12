@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace IT_SipProcess.Properties
+namespace IT_SipLinkNebula.Properties
 {
 
 

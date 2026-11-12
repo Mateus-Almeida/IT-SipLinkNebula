@@ -1,4 +1,4 @@
-﻿namespace IT_SipProcess
+﻿namespace IT_SipLinkNebula
 {
     partial class Form1
     {
@@ -140,7 +140,7 @@
             this.Margin = new System.Windows.Forms.Padding(4);
             this.MaximizeBox = false;
             this.Name = "Form1";
-            this.Text = "IT-Sip 2";
+            this.Text = "IT-SipLinkNebula";
             this.Load += new System.EventHandler(this.Form1_Load);
             this.panel2.ResumeLayout(false);
             ((System.ComponentModel.ISupportInitialize)(this.DGV_Info)).EndInit();
